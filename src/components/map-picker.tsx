@@ -9,8 +9,8 @@ interface MapPickerProps {
   onChange: (coords: { lat: number; lng: number }) => void;
 }
 
-const DEFAULT_LAT = 0.8228;
-const DEFAULT_LNG = 127.3789;
+const DEFAULT_LAT = 0.823139;
+const DEFAULT_LNG = 127.3853289;
 
 function loadLeafletCDN(): Promise<any> {
   if (typeof window === "undefined") return Promise.resolve(null);
@@ -71,7 +71,7 @@ export function MapPicker({ initialLat, initialLng, onChange }: MapPickerProps) 
       if (!mapInstanceRef.current && mapContainerRef.current) {
         const map = L.map(mapContainerRef.current).setView(
           [coords.lat, coords.lng],
-          15
+          16
         );
 
         L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {

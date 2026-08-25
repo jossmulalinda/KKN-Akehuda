@@ -21,8 +21,8 @@ interface MapViewProps {
   heightClass?: string;
 }
 
-const DEFAULT_LAT = 0.8228;
-const DEFAULT_LNG = 127.3789;
+const DEFAULT_LAT = 0.823139;
+const DEFAULT_LNG = 127.3853289;
 
 function loadLeafletCDN(): Promise<any> {
   if (typeof window === "undefined") return Promise.resolve(null);
@@ -56,7 +56,7 @@ export function MapView({
   kosanList,
   centerLat = DEFAULT_LAT,
   centerLng = DEFAULT_LNG,
-  zoom = 15,
+  zoom = 16,
   heightClass = "h-[500px]",
 }: MapViewProps) {
   const mapContainerRef = useRef<HTMLDivElement>(null);

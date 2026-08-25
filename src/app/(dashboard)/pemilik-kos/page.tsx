@@ -14,6 +14,9 @@ import {
   HelpCircle,
   Clock,
   CheckCircle2,
+  AlertTriangle,
+  X,
+  ShieldAlert,
 } from "lucide-react";
 import type { Profile, PasswordReset } from "@/lib/types/database";
 
@@ -32,7 +35,12 @@ export default function PemilikKosPage() {
   const [password, setPassword] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
   const [formLoading, setFormLoading] = useState(false);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  // Type to confirm delete state
+  const [deleteTarget, setDeleteTarget] = useState<Profile | null>(null);
+  const [confirmInputName, setConfirmInputName] = useState("");
+  const [deleting, setDeleting] = useState(false);
+  const [successAlert, setSuccessAlert] = useState<string | null>(null);
 
   // Reset password modal state
   const [resetModalUser, setResetModalUser] = useState<{
@@ -105,6 +113,8 @@ export default function PemilikKosPage() {
       setEmail("");
       setPhone("");
       setPassword("");
+      setSuccessAlert(`Akun pemilik kos "${fullName}" berhasil ditambahkan!`);
+      setTimeout(() => setSuccessAlert(null), 6000);
       fetchData();
     } catch (err: any) {
       setFormError(err.message || "Gagal menambahkan pemilik kos");
@@ -113,27 +123,42 @@ export default function PemilikKosPage() {
     }
   };
 
-  const handleDelete = async (id: string, name: string) => {
-    if (
-      !confirm(
-        `Yakin ingin menghapus pemilik kos "${name}"? Semua data kosan terkait juga akan terhapus.`
-      )
-    )
-      return;
+  const handleConfirmDelete = async () => {
+    if (!deleteTarget) return;
 
-    setDeletingId(id);
+    // Strict name match verification
+    if (
+      confirmInputName.trim().toLowerCase() !==
+      deleteTarget.full_name.trim().toLowerCase()
+    ) {
+      alert("Nama yang Anda ketik tidak cocok dengan nama pemilik kos.");
+      return;
+    }
+
+    setDeleting(true);
+    const targetName = deleteTarget.full_name;
+    const targetId = deleteTarget.id;
+
     try {
       const supabase = createClient();
-      const { error } = await supabase.from("profiles").delete().eq("id", id);
-      if (error) {
-        alert("Gagal menghapus: " + error.message);
-        return;
-      }
-      setPemilikList((prev) => prev.filter((p) => p.id !== id));
+      const { error } = await supabase
+        .from("profiles")
+        .delete()
+        .eq("id", targetId);
+
+      if (error) throw error;
+
+      setPemilikList((prev) => prev.filter((p) => p.id !== targetId));
+      setDeleteTarget(null);
+      setConfirmInputName("");
+      setSuccessAlert(
+        `Akun pemilik kos "${targetName}" beserta seluruh data kosan terkait telah berhasil dihapus dari sistem.`
+      );
+      setTimeout(() => setSuccessAlert(null), 7000);
     } catch (err: any) {
-      alert("Terjadi kesalahan saat menghapus: " + (err.message || ""));
+      alert("Gagal menghapus akun: " + (err.message || "Terjadi kesalahan"));
     } finally {
-      setDeletingId(null);
+      setDeleting(false);
     }
   };
 
@@ -145,7 +170,6 @@ export default function PemilikKosPage() {
     try {
       const supabase = createClient();
 
-      // Call postgres RPC to reset password
       const { error } = await supabase.rpc("admin_reset_user_password", {
         target_user_id: resetModalUser.id,
         new_plain_password: newPassword,
@@ -153,7 +177,6 @@ export default function PemilikKosPage() {
 
       if (error) throw error;
 
-      // If tied to a password reset request, mark as selesai
       if (resetModalUser.requestId) {
         await supabase
           .from("password_resets")
@@ -170,13 +193,21 @@ export default function PemilikKosPage() {
     }
   };
 
-  const getWhatsAppLink = (phoneNum: string | null | undefined, name: string, pass: string) => {
+  const getWhatsAppLink = (
+    phoneNum: string | null | undefined,
+    name: string,
+    pass: string
+  ) => {
     if (!phoneNum) return "";
     let cleanPhone = phoneNum.replace(/\D/g, "");
     if (cleanPhone.startsWith("0")) {
       cleanPhone = "62" + cleanPhone.slice(1);
     }
-    const message = `Halo Ibu/Bapak ${name},\n\nPassword akun SIKOSAN (Kelurahan Akehuda) Anda telah berhasil direset.\n\n🔑 *Password Baru*: ${pass}\n🌐 *Link Login*: http://192.168.1.100:3000/login\n\nSilakan login dan simpan password ini dengan baik. Terima kasih!`;
+    const origin =
+      typeof window !== "undefined"
+        ? window.location.origin
+        : process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
+    const message = `Halo Ibu/Bapak ${name},\n\nPassword akun SIKOSAN (Kelurahan Akehuda) Anda telah berhasil direset.\n\n🔑 *Password Baru*: ${pass}\n🌐 *Link Login*: ${origin}/login\n\nSilakan login dan simpan password ini dengan baik. Terima kasih!`;
     return `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`;
   };
 
@@ -184,9 +215,10 @@ export default function PemilikKosPage() {
     (r) => r.status === "pending"
   ).length;
 
-  const filtered = pemilikList.filter((p) =>
-    p.full_name.toLowerCase().includes(search.toLowerCase()) ||
-    (p.phone && p.phone.includes(search))
+  const filtered = pemilikList.filter(
+    (p) =>
+      p.full_name.toLowerCase().includes(search.toLowerCase()) ||
+      (p.phone && p.phone.includes(search))
   );
 
   return (
@@ -206,6 +238,29 @@ export default function PemilikKosPage() {
           Tambah Pemilik Kos
         </button>
       </div>
+
+      {/* Global Success Alert Banner */}
+      {successAlert && (
+        <div className="mt-4 flex items-center justify-between rounded-2xl bg-emerald-50 border border-emerald-300 p-4 text-emerald-800 shadow-md animate-in fade-in slide-in-from-top-2">
+          <div className="flex items-center gap-3">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700">
+              <CheckCircle2 className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="text-xs font-bold uppercase tracking-wider text-emerald-900">
+                Berhasil Dihapus / Diperbarui
+              </p>
+              <p className="text-sm font-medium text-emerald-800">{successAlert}</p>
+            </div>
+          </div>
+          <button
+            onClick={() => setSuccessAlert(null)}
+            className="rounded-lg p-1.5 text-emerald-600 hover:bg-emerald-100 hover:text-emerald-900 transition-colors"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+      )}
 
       {/* Tabs */}
       <div className="mt-6 flex border-b border-gray-200">
@@ -248,14 +303,14 @@ export default function PemilikKosPage() {
               placeholder="Cari nama atau nomor HP pemilik kos..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="input-field pl-10"
+              className="input-field pl-10 text-sm"
             />
           </div>
 
           <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {loading ? (
               <div className="col-span-full py-20 text-center text-gray-400">
-                Memuat data...
+                Memuat data pemilik kos...
               </div>
             ) : filtered.length > 0 ? (
               filtered.map((pemilik) => (
@@ -265,7 +320,7 @@ export default function PemilikKosPage() {
                 >
                   <div>
                     <div className="flex items-start justify-between">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary-100 text-primary-600">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-teal-100 text-teal-700">
                         <Users className="h-5 w-5" />
                       </div>
                       <div className="flex items-center gap-1">
@@ -279,31 +334,29 @@ export default function PemilikKosPage() {
                             setNewPassword("");
                             setResetSuccess(false);
                           }}
-                          className="btn-ghost p-1.5 text-gray-400 hover:text-primary-600"
+                          className="btn-ghost p-1.5 text-gray-400 hover:text-teal-600"
                           title="Reset / Ubah Password Pemilik Kos"
                         >
                           <KeyRound className="h-4 w-4" />
                         </button>
                         <button
-                          onClick={() => handleDelete(pemilik.id, pemilik.full_name)}
-                          disabled={deletingId === pemilik.id}
-                          className="btn-ghost p-1.5 text-gray-400 hover:text-red-500 disabled:opacity-50"
-                          title="Hapus pemilik kos"
+                          onClick={() => {
+                            setDeleteTarget(pemilik);
+                            setConfirmInputName("");
+                          }}
+                          className="btn-ghost p-1.5 text-gray-400 hover:text-rose-600 transition-colors"
+                          title="Hapus akun pemilik kos"
                         >
-                          {deletingId === pemilik.id ? (
-                            <div className="h-4 w-4 animate-spin rounded-full border-2 border-red-500 border-t-transparent" />
-                          ) : (
-                            <Trash2 className="h-4 w-4" />
-                          )}
+                          <Trash2 className="h-4 w-4" />
                         </button>
                       </div>
                     </div>
-                    <h3 className="mt-3 font-semibold text-gray-900">
+                    <h3 className="mt-3 font-heading font-semibold text-gray-900">
                       {pemilik.full_name}
                     </h3>
                     {pemilik.phone ? (
                       <div className="mt-1 flex items-center gap-1.5 text-sm text-gray-500">
-                        <Phone className="h-3.5 w-3.5 text-primary-600" />
+                        <Phone className="h-3.5 w-3.5 text-teal-600" />
                         <span>{pemilik.phone}</span>
                       </div>
                     ) : (
@@ -324,7 +377,7 @@ export default function PemilikKosPage() {
                       }}
                       className="w-full inline-flex items-center justify-center gap-1.5 rounded-lg bg-gray-50 py-2 text-xs font-medium text-gray-700 hover:bg-gray-100 transition-colors"
                     >
-                      <KeyRound className="h-3.5 w-3.5 text-primary-600" />
+                      <KeyRound className="h-3.5 w-3.5 text-teal-600" />
                       <span>Ubah Password Akun</span>
                     </button>
                   </div>
@@ -420,12 +473,90 @@ export default function PemilikKosPage() {
         </div>
       )}
 
+      {/* SECURITY MODAL: TYPE TO CONFIRM DELETE PEMILIK KOS */}
+      {deleteTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl animate-in zoom-in-95">
+            <div className="flex items-center gap-3 text-rose-600 border-b border-gray-100 pb-4">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-rose-100">
+                <ShieldAlert className="h-6 w-6 text-rose-600" />
+              </div>
+              <div>
+                <h3 className="font-heading text-lg font-bold text-gray-900">
+                  Konfirmasi Hapus Akun Pemilik Kos
+                </h3>
+                <p className="text-xs text-rose-600 font-medium">Tindakan ini permanen & berbahaya</p>
+              </div>
+            </div>
+
+            <div className="mt-4 space-y-3 text-sm text-gray-600">
+              <p>
+                Anda akan menghapus akun pemilik kos:{" "}
+                <strong className="text-gray-900 text-base underline decoration-rose-400 decoration-2">
+                  {deleteTarget.full_name}
+                </strong>
+              </p>
+
+              <div className="rounded-xl bg-rose-50 p-3.5 border border-rose-200 text-xs text-rose-800 space-y-1">
+                <p className="font-bold flex items-center gap-1.5 text-rose-900">
+                  <AlertTriangle className="h-4 w-4 shrink-0" />
+                  PERINGATAN PENGHAPUSAN DATA:
+                </p>
+                <p>
+                  Seluruh data <strong>Kosan</strong>, <strong>Kamar</strong>, dan <strong>Penghuni</strong> yang terdaftar di bawah akun ini akan <strong>ikut terhapus secara permanen</strong> dari sistem Kelurahan Akehuda.
+                </p>
+              </div>
+
+              <div className="pt-2">
+                <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                  Ketik nama pemilik kos <span className="font-mono font-bold text-rose-600 select-all bg-rose-50 px-1.5 py-0.5 rounded border border-rose-200">&quot;{deleteTarget.full_name}&quot;</span> di bawah untuk mengonfirmasi:
+                </label>
+                <input
+                  type="text"
+                  value={confirmInputName}
+                  onChange={(e) => setConfirmInputName(e.target.value)}
+                  placeholder={`Ketik ${deleteTarget.full_name}`}
+                  className="input-field border-rose-300 focus:border-rose-500 focus:ring-rose-200 font-medium text-sm"
+                  autoFocus
+                />
+              </div>
+            </div>
+
+            <div className="mt-6 flex gap-3 border-t border-gray-100 pt-4">
+              <button
+                type="button"
+                onClick={() => {
+                  setDeleteTarget(null);
+                  setConfirmInputName("");
+                }}
+                disabled={deleting}
+                className="btn-ghost flex-1 text-sm"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmDelete}
+                disabled={
+                  deleting ||
+                  confirmInputName.trim().toLowerCase() !==
+                    deleteTarget.full_name.trim().toLowerCase()
+                }
+                className="btn-danger flex-1 text-sm bg-rose-600 hover:bg-rose-700 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                {deleting ? "Menghapus..." : "Ya, Hapus Permanen"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* MODAL RESET PASSWORD */}
       {resetModalUser && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
           <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary-100 text-primary-600">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-teal-100 text-teal-700">
                 <KeyRound className="h-5 w-5" />
               </div>
               <div>
@@ -490,7 +621,11 @@ export default function PemilikKosPage() {
 
                 {resetModalUser.phone && (
                   <a
-                    href={getWhatsAppLink(resetModalUser.phone, resetModalUser.name, newPassword)}
+                    href={getWhatsAppLink(
+                      resetModalUser.phone,
+                      resetModalUser.name,
+                      newPassword
+                    )}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="btn-primary w-full py-2.5 inline-flex items-center justify-center gap-2 bg-[#25D366] hover:bg-[#20bd5a] text-white"

@@ -15,7 +15,10 @@ export function generateKodeUnik(): string {
 }
 
 export function getFormUrl(kodeUnik: string): string {
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
+  if (typeof window !== "undefined" && !process.env.NEXT_PUBLIC_BASE_URL) {
+    return `${window.location.origin}/form/${kodeUnik}`;
+  }
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || (typeof window !== "undefined" ? window.location.origin : "http://localhost:3000");
   return `${baseUrl}/form/${kodeUnik}`;
 }
 

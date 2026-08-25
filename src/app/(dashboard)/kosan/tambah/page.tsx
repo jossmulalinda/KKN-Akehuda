@@ -14,8 +14,8 @@ export default function TambahKosanPage() {
   const [alamat, setAlamat] = useState("");
   const [pemilikId, setPemilikId] = useState("");
   const [coords, setCoords] = useState<{ lat: number; lng: number }>({
-    lat: 0.8228,
-    lng: 127.3789,
+    lat: 0.823139,
+    lng: 127.3853289,
   });
   const [pemilikList, setPemilikList] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(false);

@@ -15,6 +15,8 @@ export const metadata: Metadata = {
   },
 };
 
+import { NetworkStatus } from "@/components/network-status";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -26,6 +28,7 @@ export default function RootLayout({
         <link rel="icon" href="/favicon.png" type="image/png" />
       </head>
       <body className="font-sans antialiased">
+        <NetworkStatus />
         {children}
       </body>
     </html>
