@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { ArrowLeft, MapPin, User, Calendar, Home, ExternalLink } from "lucide-react";
+import { ArrowLeft, MapPin, User, Calendar, Home, ExternalLink, Edit } from "lucide-react";
 import { QRCodeDisplay } from "@/components/qr-code";
 import { getFormUrl, formatDate } from "@/lib/utils";
 import { MapView } from "@/components/map-view";
@@ -82,7 +82,16 @@ export default async function DetailKosanPage({ params }: Props) {
                   <span>{kosanData.alamat}</span>
                 </div>
               </div>
-              <span className="badge badge-success">Terdaftar</span>
+              <div className="flex items-center gap-2">
+                <Link
+                  href={`/kosan/${id}/edit`}
+                  className="btn-secondary text-xs px-3 py-1.5 inline-flex items-center gap-1.5"
+                >
+                  <Edit className="h-3.5 w-3.5" />
+                  <span>Edit Kosan</span>
+                </Link>
+                <span className="badge badge-success">Terdaftar</span>
+              </div>
             </div>
 
             <div className="mt-6 grid grid-cols-3 gap-4">
