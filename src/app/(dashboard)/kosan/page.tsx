@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
-import { Plus, Search, Home, MapPin, Users, LayoutGrid, Map, ExternalLink, QrCode } from "lucide-react";
+import { Plus, Search, Home, MapPin, Users, LayoutGrid, Map, ExternalLink } from "lucide-react";
 import { MapView, type KosanMapItem } from "@/components/map-view";
 
 export default function KosanPage() {
@@ -181,12 +181,9 @@ export default function KosanPage() {
                         <span>🚪 {kosan.kamar?.length || 0} Kamar ({kamarTerisi} Terisi)</span>
                         <span>👥 {totalPenghuni} Penghuni</span>
                       </div>
-                      <div className="mt-3 flex items-center justify-between">
-                        <span className="inline-flex items-center gap-1 text-xs font-medium text-teal-700 bg-teal-50 px-2 py-1 rounded-md">
-                          <QrCode className="h-3.5 w-3.5" /> Poster QR
-                        </span>
-                        <span className="text-xs font-semibold text-primary-600 hover:text-primary-700">
-                          Detail &rarr;
+                      <div className="mt-3 text-right">
+                        <span className="text-sm font-semibold text-primary-600 hover:text-primary-700">
+                          Lihat Detail &rarr;
                         </span>
                       </div>
                     </div>
