@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
-import { Plus, Search, Home, MapPin, Users, LayoutGrid, Map, ExternalLink } from "lucide-react";
+import { Plus, Search, Home, MapPin, Users, LayoutGrid, Map, ExternalLink, QrCode } from "lucide-react";
 import { MapView, type KosanMapItem } from "@/components/map-view";
 
 export default function KosanPage() {
