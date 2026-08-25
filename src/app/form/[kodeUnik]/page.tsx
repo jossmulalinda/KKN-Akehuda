@@ -125,6 +125,7 @@ export default function FormPenghuniPage({
 
   const validateStep1 = () => {
     const p = penghuniList[0];
+    if (!p.foto) return "Foto selfie / pas foto wajah Anda wajib diunggah.";
     if (!p.nama_lengkap.trim()) return "Nama lengkap penghuni pertama wajib diisi.";
     if (!p.tempat_lahir.trim()) return "Tempat lahir wajib diisi.";
     if (!p.tanggal_lahir) return "Tanggal lahir wajib diisi.";
@@ -134,6 +135,21 @@ export default function FormPenghuniPage({
     if (!p.status_pekerjaan) return "Status pekerjaan / kuliah wajib dipilih.";
     if (!nomorKamar.trim()) return "Nomor kamar kos wajib diisi.";
     if (isRoomOccupied) return `Kamar "${nomorKamar}" sudah terdaftar dan terisi. Silakan pilih nomor kamar Anda yang benar.`;
+    return null;
+  };
+
+  const validateAdditionalPenghuni = () => {
+    for (let i = 1; i < penghuniList.length; i++) {
+      const p = penghuniList[i];
+      if (!p.foto) return `Foto selfie / pas foto Penghuni #${i + 1} wajib diunggah.`;
+      if (!p.nama_lengkap.trim()) return `Nama lengkap Penghuni #${i + 1} wajib diisi.`;
+      if (!p.tempat_lahir.trim()) return `Tempat lahir Penghuni #${i + 1} wajib diisi.`;
+      if (!p.tanggal_lahir) return `Tanggal lahir Penghuni #${i + 1} wajib diisi.`;
+      if (!p.asal_daerah.trim()) return `Asal daerah Penghuni #${i + 1} wajib diisi.`;
+      if (!p.jenis_kelamin) return `Jenis kelamin Penghuni #${i + 1} wajib dipilih.`;
+      if (!p.no_hp.trim()) return `Nomor HP / WhatsApp Penghuni #${i + 1} wajib diisi.`;
+      if (!p.status_pekerjaan) return `Status pekerjaan Penghuni #${i + 1} wajib dipilih.`;
+    }
     return null;
   };
 
@@ -148,6 +164,22 @@ export default function FormPenghuniPage({
   };
 
   const handleSubmit = async () => {
+    const step1Err = validateStep1();
+    if (step1Err) {
+      setError(step1Err);
+      setStep(1);
+      return;
+    }
+
+    if (jumlahPenghuni > 1) {
+      const addErr = validateAdditionalPenghuni();
+      if (addErr) {
+        setError(addErr);
+        setStep(3);
+        return;
+      }
+    }
+
     if (isRoomOccupied) {
       setError(`Kamar ${nomorKamar} sudah terisi oleh penghuni lain.`);
       return;
@@ -317,36 +349,43 @@ export default function FormPenghuniPage({
         {/* Foto Selfie */}
         <div className="space-y-1.5">
           <label className="text-sm font-medium text-gray-700">
-            Foto Selfie / Pas Foto {isAdditional ? `(Penghuni #${index + 1})` : ""}
+            Foto Selfie / Pas Foto {isAdditional ? `(Penghuni #${index + 1})` : ""} <span className="text-red-500">*</span>
           </label>
           <div className="flex items-center gap-4">
             {p.foto_preview ? (
               <img
                 src={p.foto_preview}
                 alt="Preview"
-                className="h-20 w-20 rounded-xl object-cover border-2 border-primary-500"
+                className="h-20 w-20 rounded-xl object-cover border-2 border-primary-500 shadow-sm"
               />
             ) : (
-              <div className="flex h-20 w-20 items-center justify-center rounded-xl bg-gray-100 text-gray-400 border border-gray-200">
-                <Camera className="h-8 w-8" />
+              <div className="flex h-20 w-20 items-center justify-center rounded-xl bg-gray-100 text-gray-400 border-2 border-dashed border-gray-300">
+                <Camera className="h-8 w-8 text-gray-400" />
               </div>
             )}
             <div>
               <label className="btn-secondary cursor-pointer text-sm">
                 <Camera className="mr-1.5 h-4 w-4" />
-                <span>{p.foto_preview ? "Ganti Foto" : "Ambil / Pilih Foto"}</span>
+                <span>{p.foto_preview ? "Ganti Foto" : "Ambil / Unggah Foto"}</span>
                 <input
                   type="file"
                   accept="image/*"
                   capture="user"
-                  onChange={(e) =>
-                    handleFotoChange(index, e.target.files?.[0] || null)
-                  }
+                  onChange={(e) => {
+                    handleFotoChange(index, e.target.files?.[0] || null);
+                    setError(null);
+                  }}
                   className="hidden"
                 />
               </label>
-              <p className="mt-1 text-xs text-gray-400">
-                Format: JPG, PNG (Maks 10MB)
+              <p className="mt-1 text-xs">
+                {p.foto ? (
+                  <span className="text-emerald-600 font-medium inline-flex items-center gap-1">
+                    <CheckCircle className="h-3.5 w-3.5" /> Foto terunggah
+                  </span>
+                ) : (
+                  <span className="text-amber-600 font-medium">⚠️ Wajib diunggah (JPG/PNG maks 10MB)</span>
+                )}
               </p>
             </div>
           </div>
