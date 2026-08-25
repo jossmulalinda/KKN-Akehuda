@@ -1,8 +1,8 @@
 "use client";
 
 import { QRCodeSVG } from "qrcode.react";
-import { Copy, Download, Check, Printer, X, Sparkles } from "lucide-react";
-import { useState, useRef } from "react";
+import { Copy, Download, Check, Printer, X, Sparkles, ExternalLink } from "lucide-react";
+import { useState, useRef, useEffect } from "react";
 
 interface QRCodeDisplayProps {
   url: string;
@@ -19,11 +19,18 @@ export function QRCodeDisplay({
 }: QRCodeDisplayProps) {
   const [copied, setCopied] = useState(false);
   const [showPosterModal, setShowPosterModal] = useState(false);
+  const [currentUrl, setCurrentUrl] = useState(url);
   const qrRef = useRef<HTMLDivElement>(null);
   const posterRef = useRef<HTMLDivElement>(null);
 
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      setCurrentUrl(`${window.location.origin}/form/${kodeUnik}`);
+    }
+  }, [kodeUnik]);
+
   const handleCopy = async () => {
-    await navigator.clipboard.writeText(url);
+    await navigator.clipboard.writeText(currentUrl);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -118,7 +125,7 @@ export function QRCodeDisplay({
           className="mt-4 flex items-center justify-center rounded-xl bg-white p-6 border border-gray-100 shadow-inner"
         >
           <QRCodeSVG
-            value={url}
+            value={currentUrl}
             size={200}
             bgColor="#ffffff"
             fgColor="#115e59"
@@ -129,9 +136,20 @@ export function QRCodeDisplay({
 
         {/* Link */}
         <div className="mt-4">
-          <label className="text-xs font-medium text-gray-500">Link Form Pendataan</label>
-          <div className="mt-1 flex items-center gap-2 rounded-lg bg-gray-50 px-3 py-2">
-            <span className="flex-1 truncate text-xs font-mono text-gray-700">{url}</span>
+          <div className="flex items-center justify-between">
+            <label className="text-xs font-medium text-gray-500">Link Form Pendataan</label>
+            <a
+              href={currentUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[11px] text-teal-600 hover:text-teal-700 font-semibold inline-flex items-center gap-1"
+            >
+              <span>Uji Buka Form</span>
+              <ExternalLink className="h-3 w-3" />
+            </a>
+          </div>
+          <div className="mt-1 flex items-center gap-2 rounded-lg bg-gray-50 px-3 py-2 border border-gray-200">
+            <span className="flex-1 truncate text-xs font-mono text-gray-700">{currentUrl}</span>
           </div>
         </div>
 
@@ -228,7 +246,7 @@ export function QRCodeDisplay({
                 <div className="my-4 flex items-center justify-center">
                   <div className="rounded-2xl border-2 border-teal-600 bg-white p-4 shadow-md">
                     <QRCodeSVG
-                      value={url}
+                      value={currentUrl}
                       size={220}
                       bgColor="#ffffff"
                       fgColor="#115e59"

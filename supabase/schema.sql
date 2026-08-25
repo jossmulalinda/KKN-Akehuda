@@ -242,6 +242,10 @@ CREATE POLICY "Allow public insert kamar"
   ON kamar FOR INSERT
   WITH CHECK (true);
 
+CREATE POLICY "Allow public update kamar"
+  ON kamar FOR UPDATE
+  USING (true);
+
 CREATE POLICY "Allow public view kamar"
   ON kamar FOR SELECT
   USING (true);

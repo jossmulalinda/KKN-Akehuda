@@ -64,7 +64,7 @@ export default function FormPenghuniPage({
 
   const fetchKosan = async () => {
     const supabase = createClient();
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("kosan")
       .select(`
         id,
@@ -77,10 +77,11 @@ export default function FormPenghuniPage({
         )
       `)
       .eq("kode_unik", kodeUnik)
-      .single();
+      .maybeSingle();
 
     if (data) {
       setKosanInfo(data as any);
+      setNotFound(false);
     } else {
       setNotFound(true);
     }
