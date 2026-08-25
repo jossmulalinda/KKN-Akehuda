@@ -110,6 +110,7 @@ export function MapPicker({ initialLat, initialLng, onChange }: MapPickerProps) 
         mapInstanceRef.current.remove();
         mapInstanceRef.current = null;
       }
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
