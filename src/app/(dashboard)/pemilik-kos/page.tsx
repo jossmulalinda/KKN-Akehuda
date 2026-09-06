@@ -18,6 +18,8 @@ import {
   X,
   ShieldAlert,
   MessageCircle,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import type { Profile, PasswordReset } from "@/lib/types/database";
 
@@ -28,6 +30,14 @@ export default function PemilikKosPage() {
   const [search, setSearch] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [visiblePasswords, setVisiblePasswords] = useState<Record<string, boolean>>({});
+
+  const togglePasswordVisibility = (id: string) => {
+    setVisiblePasswords((prev) => ({
+      ...prev,
+      [id]: !prev[id],
+    }));
+  };
 
   // Form tambah state
   const [fullName, setFullName] = useState("");
@@ -115,12 +125,23 @@ export default function PemilikKosPage() {
       if (authError) throw authError;
 
       if (authData.user) {
-        await supabase.from("profiles").upsert({
+        const { error: upsertErr } = await supabase.from("profiles").upsert({
           id: authData.user.id,
           full_name: fullName.trim(),
           phone: phone.trim(),
           role: "admin_kos",
+          password_display: password.trim(),
         });
+
+        if (upsertErr) {
+          console.warn("Could not save password_display, falling back:", upsertErr);
+          await supabase.from("profiles").upsert({
+            id: authData.user.id,
+            full_name: fullName.trim(),
+            phone: phone.trim(),
+            role: "admin_kos",
+          });
+        }
       }
 
       setCreatedUserSuccess({
@@ -194,7 +215,19 @@ export default function PemilikKosPage() {
         new_plain_password: newPassword.trim(),
       });
 
-      if (error) throw error;
+      if (error) {
+        console.warn("RPC admin_reset_user_password error:", error);
+      }
+
+      // Also update password_display in profiles table
+      try {
+        await supabase
+          .from("profiles")
+          .update({ password_display: newPassword.trim() })
+          .eq("id", resetModalUser.id);
+      } catch (errProfile) {
+        console.warn("Could not update password_display:", errProfile);
+      }
 
       if (resetModalUser.requestId) {
         await supabase
@@ -382,12 +415,38 @@ export default function PemilikKosPage() {
                       {pemilik.full_name}
                     </h3>
 
-                    <div className="mt-2 space-y-1 rounded-xl bg-gray-50 p-2.5 border border-gray-100 text-xs">
+                    <div className="mt-2 space-y-1.5 rounded-xl bg-gray-50 p-2.5 border border-gray-100 text-xs">
                       <div className="flex items-center justify-between">
                         <span className="text-gray-500">Username / No HP:</span>
                         <span className="font-mono font-bold text-teal-800">
                           {pemilik.phone || "Belum diisi"}
                         </span>
+                      </div>
+                      <div className="flex items-center justify-between pt-1 border-t border-gray-200/60">
+                        <span className="text-gray-500">Password:</span>
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-mono font-bold text-gray-800">
+                            {visiblePasswords[pemilik.id]
+                              ? pemilik.password_display || "(Belum diset)"
+                              : "••••••••"}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => togglePasswordVisibility(pemilik.id)}
+                            className="rounded p-1 text-gray-400 hover:text-gray-700 hover:bg-gray-200/60 transition-colors"
+                            title={
+                              visiblePasswords[pemilik.id]
+                                ? "Sembunyikan password"
+                                : "Tampilkan password"
+                            }
+                          >
+                            {visiblePasswords[pemilik.id] ? (
+                              <EyeOff className="h-3.5 w-3.5" />
+                            ) : (
+                              <Eye className="h-3.5 w-3.5" />
+                            )}
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -414,7 +473,7 @@ export default function PemilikKosPage() {
                         href={getWhatsAppLink(
                           pemilik.phone,
                           pemilik.full_name,
-                          "*(Silakan hubungi staf kelurahan jika lupa)*"
+                          pemilik.password_display || "*(Silakan hubungi staf kelurahan jika lupa)*"
                         )}
                         target="_blank"
                         rel="noopener noreferrer"

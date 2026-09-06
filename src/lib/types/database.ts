@@ -26,6 +26,7 @@ export interface Database {
           full_name: string;
           phone: string | null;
           role: UserRole;
+          password_display?: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -34,6 +35,7 @@ export interface Database {
           full_name: string;
           phone?: string | null;
           role: UserRole;
+          password_display?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -42,6 +44,7 @@ export interface Database {
           full_name?: string;
           phone?: string | null;
           role?: UserRole;
+          password_display?: string | null;
           created_at?: string;
           updated_at?: string;
         };

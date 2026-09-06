@@ -27,6 +27,7 @@ CREATE TABLE profiles (
   full_name TEXT NOT NULL,
   phone TEXT,
   role user_role NOT NULL DEFAULT 'admin_kos',
+  password_display TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
