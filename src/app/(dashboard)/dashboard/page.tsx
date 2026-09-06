@@ -1,9 +1,34 @@
 import { createClient } from "@/lib/supabase/server";
-import { Home, Users, ClipboardList, TrendingUp, QrCode, DoorOpen, ArrowRight } from "lucide-react";
+import { Home, Users, ClipboardList, UserCheck, QrCode, DoorOpen, ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { QRCodeDisplay } from "@/components/qr-code";
 import { getFormUrl } from "@/lib/utils";
 import type { Profile } from "@/lib/types/database";
+
+const getHubunganBadge = (hubungan: string | null | undefined) => {
+  let label = "Lainnya";
+  switch (hubungan) {
+    case "suami_istri":
+      label = "Suami - Istri";
+      break;
+    case "saudara":
+      label = "Saudara / Family";
+      break;
+    case "teman":
+      label = "Teman";
+      break;
+    case "kerabat":
+      label = "Kerabat";
+      break;
+    default:
+      label = "Lainnya";
+      break;
+  }
+  return {
+    label,
+    color: "bg-amber-50 text-amber-800 border-amber-200",
+  };
+};
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -63,6 +88,7 @@ export default async function DashboardPage() {
         ) || 0),
       0
     );
+    const kamarKosong = Math.max(0, totalKamar - kamarTerisi);
 
     const stats = [
       {
@@ -78,10 +104,10 @@ export default async function DashboardPage() {
         color: "bg-amber-100 text-amber-700",
       },
       {
-        label: "Kamar Terisi",
-        value: kamarTerisi,
+        label: "Kamar Kosong",
+        value: kamarKosong,
         icon: DoorOpen,
-        color: "bg-emerald-100 text-emerald-700",
+        color: "bg-gray-100 text-gray-700",
       },
       {
         label: "Total Penghuni",
@@ -133,7 +159,7 @@ export default async function DashboardPage() {
           ))}
         </div>
 
-        {/* QR Code Section (Prominent for Pemilik Kos) */}
+        {/* QR Code Section */}
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <div>
@@ -181,16 +207,18 @@ export default async function DashboardPage() {
     );
   }
 
-  // Superadmin view
-  const [kosanResult, penghuniResult, kamarResult] = await Promise.all([
+  // Superadmin view: Exact statistics without misleading percentages
+  const [kosanResult, penghuniResult, kamarResult, pemilikResult] = await Promise.all([
     supabase.from("kosan").select("id", { count: "exact", head: true }),
     supabase.from("penghuni").select("id", { count: "exact", head: true }),
     supabase.from("kamar").select("id", { count: "exact", head: true }),
+    supabase.from("profiles").select("id", { count: "exact", head: true }).eq("role", "admin_kos"),
   ]);
 
   const totalKosan = kosanResult.count || 0;
   const totalPenghuni = penghuniResult.count || 0;
   const totalKamar = kamarResult.count || 0;
+  const totalPemilik = pemilikResult.count || 0;
 
   const { data: recentPenghuni } = await supabase
     .from("penghuni")
@@ -201,7 +229,8 @@ export default async function DashboardPage() {
       jenis_kelamin,
       status_pekerjaan,
       created_at,
-      kosan (nama)
+      kosan (nama, kode_unik),
+      kamar (nomor_kamar, jumlah_penghuni, hubungan)
     `)
     .order("created_at", { ascending: false })
     .limit(5);
@@ -211,25 +240,25 @@ export default async function DashboardPage() {
       label: "Total Kosan",
       value: totalKosan,
       icon: Home,
-      color: "bg-primary-100 text-primary-600",
+      color: "bg-teal-100 text-teal-700",
     },
     {
       label: "Total Penghuni",
       value: totalPenghuni,
       icon: Users,
-      color: "bg-blue-100 text-blue-600",
+      color: "bg-blue-100 text-blue-700",
     },
     {
       label: "Total Kamar",
       value: totalKamar,
       icon: ClipboardList,
-      color: "bg-amber-100 text-amber-600",
+      color: "bg-amber-100 text-amber-700",
     },
     {
-      label: "Kamar Terisi",
-      value: `${totalKamar > 0 ? Math.round((totalPenghuni / Math.max(totalKamar, 1)) * 100) : 0}%`,
-      icon: TrendingUp,
-      color: "bg-green-100 text-green-600",
+      label: "Pemilik Kos Terdaftar",
+      value: totalPemilik,
+      icon: UserCheck,
+      color: "bg-emerald-100 text-emerald-700",
     },
   ];
 
@@ -247,18 +276,18 @@ export default async function DashboardPage() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 lg:gap-6">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4">
         {stats.map((stat) => (
-          <div key={stat.label} className="card hover:shadow-md transition-shadow">
-            <div className="flex items-center gap-4">
+          <div key={stat.label} className="card p-4 hover:shadow-md transition-shadow">
+            <div className="flex items-center gap-3">
               <div
-                className={`flex h-12 w-12 items-center justify-center rounded-xl ${stat.color}`}
+                className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${stat.color}`}
               >
-                <stat.icon className="h-6 w-6" />
+                <stat.icon className="h-5 w-5" />
               </div>
               <div>
-                <p className="text-sm text-gray-500">{stat.label}</p>
-                <p className="text-2xl font-bold text-gray-900">{stat.value}</p>
+                <p className="text-xs text-gray-500">{stat.label}</p>
+                <p className="text-xl font-bold text-gray-900">{stat.value}</p>
               </div>
             </div>
           </div>
@@ -280,7 +309,7 @@ export default async function DashboardPage() {
                 <h3 className="font-semibold text-gray-900 group-hover:text-teal-600">
                   Daftar & Peta Kosan
                 </h3>
-                <p className="text-xs text-gray-500">Lihat sebaran & cetak QR</p>
+                <p className="text-xs text-gray-500">Lihat sebaran & detail kos</p>
               </div>
             </div>
             <ArrowRight className="h-4 w-4 text-gray-400 group-hover:text-teal-600" />
@@ -300,7 +329,7 @@ export default async function DashboardPage() {
                 <h3 className="font-semibold text-gray-900 group-hover:text-amber-600">
                   Pemilik Kos
                 </h3>
-                <p className="text-xs text-gray-500">Kelola akun & reset sandi</p>
+                <p className="text-xs text-gray-500">Kelola akun & kirim info login</p>
               </div>
             </div>
             <ArrowRight className="h-4 w-4 text-gray-400 group-hover:text-amber-600" />
@@ -349,41 +378,85 @@ export default async function DashboardPage() {
                 <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">
                   Nama Lengkap
                 </th>
+                <th className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wider text-gray-600">
+                  L/P
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">
+                  Kosan & Kamar
+                </th>
                 <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">
                   Asal Daerah
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">
-                  Kosan
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">
-                  Status Pekerjaan
+                  Status
                 </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {recentPenghuni && recentPenghuni.length > 0 ? (
-                recentPenghuni.map((p: any) => (
-                  <tr key={p.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-4 py-3 text-sm font-semibold text-gray-900">
-                      {p.nama_lengkap}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-500">
-                      {p.asal_daerah}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-600 font-medium">
-                      {p.kosan?.nama || "-"}
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className="badge badge-success capitalize text-[11px]">
-                        {p.status_pekerjaan}
-                      </span>
-                    </td>
-                  </tr>
-                ))
+                recentPenghuni.map((p: any) => {
+                  const isMale = p.jenis_kelamin === "laki_laki";
+
+                  return (
+                    <tr key={p.id} className="hover:bg-gray-50 transition-colors">
+                      <td className="px-4 py-3 text-sm font-semibold text-gray-900">
+                        {p.nama_lengkap}
+                      </td>
+                      <td className="px-3 py-3 text-center">
+                        <span
+                          className={`inline-flex items-center justify-center h-6 w-6 rounded-full text-xs font-bold ${
+                            isMale
+                              ? "bg-blue-100 text-blue-800"
+                              : "bg-pink-100 text-pink-800"
+                          }`}
+                        >
+                          {isMale ? "L" : "P"}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-600 font-medium">
+                        <div className="flex items-center gap-1.5">
+                          <span>{p.kosan?.nama || "-"}</span>
+                          {p.kosan?.kode_unik && (
+                            <span className="text-[10px] font-mono font-bold text-gray-400">
+                              #{p.kosan.kode_unik}
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
+                          <span className="text-xs text-teal-700 font-semibold">
+                            Kamar {p.kamar?.nomor_kamar || "-"}
+                          </span>
+                          {p.kamar?.jumlah_penghuni && p.kamar.jumlah_penghuni > 1 && (
+                            <span className="inline-flex items-center gap-1 rounded bg-teal-50 px-1.5 py-0.2 text-[10px] font-bold text-teal-800 border border-teal-200">
+                              {p.kamar.jumlah_penghuni} Orang
+                            </span>
+                          )}
+                          {p.kamar?.jumlah_penghuni && p.kamar.jumlah_penghuni > 1 && p.kamar?.hubungan && (
+                            <span
+                              className={`inline-flex items-center rounded px-1.5 py-0.2 text-[10px] font-semibold border ${
+                                getHubunganBadge(p.kamar.hubungan).color
+                              }`}
+                            >
+                              {getHubunganBadge(p.kamar.hubungan).label}
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-500">
+                        {p.asal_daerah}
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className="badge badge-success capitalize text-[11px]">
+                          {p.status_pekerjaan}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })
               ) : (
                 <tr>
                   <td
-                    colSpan={4}
+                    colSpan={5}
                     className="px-4 py-12 text-center text-sm text-gray-400"
                   >
                     Belum ada data penghuni baru

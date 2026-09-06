@@ -99,13 +99,27 @@ export function MapPicker({ initialLat, initialLng, onChange }: MapPickerProps) 
         mapInstanceRef.current = map;
         markerRef.current = marker;
         setMapLoaded(true);
+
+        setTimeout(() => {
+          if (mapInstanceRef.current) {
+            mapInstanceRef.current.invalidateSize();
+          }
+        }, 300);
       }
     };
 
+    const handleResize = () => {
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.invalidateSize();
+      }
+    };
+
+    window.addEventListener("resize", handleResize);
     initMap();
 
     return () => {
       isMounted = false;
+      window.removeEventListener("resize", handleResize);
       if (mapInstanceRef.current) {
         mapInstanceRef.current.remove();
         mapInstanceRef.current = null;
@@ -166,7 +180,7 @@ export function MapPicker({ initialLat, initialLng, onChange }: MapPickerProps) 
         </button>
       </div>
 
-      <div className="relative h-64 w-full overflow-hidden rounded-xl border border-gray-300 bg-gray-100 shadow-inner">
+      <div className="relative aspect-square md:aspect-auto md:h-72 w-full overflow-hidden rounded-2xl border border-gray-300 bg-gray-100 shadow-inner">
         <div ref={mapContainerRef} className="h-full w-full z-10" />
         {!mapLoaded && (
           <div className="absolute inset-0 flex items-center justify-center bg-gray-50 text-xs text-gray-400">

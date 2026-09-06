@@ -17,6 +17,7 @@ import {
   AlertTriangle,
   X,
   ShieldAlert,
+  MessageCircle,
 } from "lucide-react";
 import type { Profile, PasswordReset } from "@/lib/types/database";
 
@@ -30,11 +31,15 @@ export default function PemilikKosPage() {
 
   // Form tambah state
   const [fullName, setFullName] = useState("");
-  const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
   const [formLoading, setFormLoading] = useState(false);
+  const [createdUserSuccess, setCreatedUserSuccess] = useState<{
+    name: string;
+    phone: string;
+    pass: string;
+  } | null>(null);
 
   // Type to confirm delete state
   const [deleteTarget, setDeleteTarget] = useState<Profile | null>(null);
@@ -83,16 +88,26 @@ export default function PemilikKosPage() {
     setFormLoading(true);
     setFormError(null);
 
+    const cleanPhone = phone.trim().replace(/\D/g, "");
+    if (cleanPhone.length < 8) {
+      setFormError("Nomor HP minimal 8 digit.");
+      setFormLoading(false);
+      return;
+    }
+
+    const generatedEmail = `${cleanPhone}@sikosan.akehuda.id`;
+
     try {
       const supabase = createClient();
 
       const { data: authData, error: authError } = await supabase.auth.signUp({
-        email,
-        password,
+        email: generatedEmail,
+        password: password.trim(),
         options: {
           data: {
-            full_name: fullName,
+            full_name: fullName.trim(),
             role: "admin_kos",
+            phone: phone.trim(),
           },
         },
       });
@@ -102,18 +117,23 @@ export default function PemilikKosPage() {
       if (authData.user) {
         await supabase.from("profiles").upsert({
           id: authData.user.id,
-          full_name: fullName,
-          phone: phone || null,
+          full_name: fullName.trim(),
+          phone: phone.trim(),
           role: "admin_kos",
         });
       }
 
+      setCreatedUserSuccess({
+        name: fullName.trim(),
+        phone: phone.trim(),
+        pass: password.trim(),
+      });
+
       setShowModal(false);
       setFullName("");
-      setEmail("");
       setPhone("");
       setPassword("");
-      setSuccessAlert(`Akun pemilik kos "${fullName}" berhasil ditambahkan!`);
+      setSuccessAlert(`Akun pemilik kos "${fullName.trim()}" berhasil dibuat!`);
       setTimeout(() => setSuccessAlert(null), 6000);
       fetchData();
     } catch (err: any) {
@@ -126,7 +146,6 @@ export default function PemilikKosPage() {
   const handleConfirmDelete = async () => {
     if (!deleteTarget) return;
 
-    // Strict name match verification
     if (
       confirmInputName.trim().toLowerCase() !==
       deleteTarget.full_name.trim().toLowerCase()
@@ -172,7 +191,7 @@ export default function PemilikKosPage() {
 
       const { error } = await supabase.rpc("admin_reset_user_password", {
         target_user_id: resetModalUser.id,
-        new_plain_password: newPassword,
+        new_plain_password: newPassword.trim(),
       });
 
       if (error) throw error;
@@ -196,7 +215,8 @@ export default function PemilikKosPage() {
   const getWhatsAppLink = (
     phoneNum: string | null | undefined,
     name: string,
-    pass: string
+    pass: string,
+    isNewAccount: boolean = false
   ) => {
     if (!phoneNum) return "";
     let cleanPhone = phoneNum.replace(/\D/g, "");
@@ -207,7 +227,13 @@ export default function PemilikKosPage() {
       typeof window !== "undefined"
         ? window.location.origin
         : process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
-    const message = `Halo Ibu/Bapak ${name},\n\nPassword akun SIKOSAN (Kelurahan Akehuda) Anda telah berhasil direset.\n\n🔑 *Password Baru*: ${pass}\n🌐 *Link Login*: ${origin}/login\n\nSilakan login dan simpan password ini dengan baik. Terima kasih!`;
+
+    let message = "";
+    if (isNewAccount) {
+      message = `Halo Ibu/Bapak ${name},\n\nAkun SIKOSAN (Kelurahan Akehuda) Anda telah dibuat:\n\n📱 *Username / No HP*: ${phoneNum}\n🔑 *Password*: ${pass}\n🌐 *Link Login*: ${origin}/login\n\nSilakan login untuk mencetak poster QR Code dan memantau kamar kos Anda. Terima kasih!`;
+    } else {
+      message = `Halo Ibu/Bapak ${name},\n\nPassword akun SIKOSAN (Kelurahan Akehuda) Anda telah berhasil direset:\n\n📱 *Username / No HP*: ${phoneNum}\n🔑 *Password Baru*: ${pass}\n🌐 *Link Login*: ${origin}/login\n\nSilakan login dan simpan password ini dengan baik. Terima kasih!`;
+    }
     return `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`;
   };
 
@@ -229,8 +255,8 @@ export default function PemilikKosPage() {
           <h1 className="font-heading text-3xl font-bold text-gray-900">
             Pemilik Kos
           </h1>
-          <p className="mt-1 text-gray-500">
-            Kelola akun, reset password, dan pantau pemilik kos di Kelurahan Akehuda
+          <p className="mt-1 text-sm text-gray-500">
+            Kelola akun, kirim info login via WhatsApp, dan pantau pemilik kos di Kelurahan Akehuda
           </p>
         </div>
         <button onClick={() => setShowModal(true)} className="btn-primary">
@@ -248,7 +274,7 @@ export default function PemilikKosPage() {
             </div>
             <div>
               <p className="text-xs font-bold uppercase tracking-wider text-emerald-900">
-                Berhasil Dihapus / Diperbarui
+                Notifikasi Berhasil
               </p>
               <p className="text-sm font-medium text-emerald-800">{successAlert}</p>
             </div>
@@ -320,8 +346,8 @@ export default function PemilikKosPage() {
                 >
                   <div>
                     <div className="flex items-start justify-between">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-teal-100 text-teal-700">
-                        <Users className="h-5 w-5" />
+                      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-teal-100 text-teal-700 font-bold text-sm">
+                        {pemilik.full_name.slice(0, 2).toUpperCase()}
                       </div>
                       <div className="flex items-center gap-1">
                         <button
@@ -351,20 +377,22 @@ export default function PemilikKosPage() {
                         </button>
                       </div>
                     </div>
-                    <h3 className="mt-3 font-heading font-semibold text-gray-900">
+
+                    <h3 className="mt-3 font-heading font-bold text-gray-900 text-base">
                       {pemilik.full_name}
                     </h3>
-                    {pemilik.phone ? (
-                      <div className="mt-1 flex items-center gap-1.5 text-sm text-gray-500">
-                        <Phone className="h-3.5 w-3.5 text-teal-600" />
-                        <span>{pemilik.phone}</span>
+
+                    <div className="mt-2 space-y-1 rounded-xl bg-gray-50 p-2.5 border border-gray-100 text-xs">
+                      <div className="flex items-center justify-between">
+                        <span className="text-gray-500">Username / No HP:</span>
+                        <span className="font-mono font-bold text-teal-800">
+                          {pemilik.phone || "Belum diisi"}
+                        </span>
                       </div>
-                    ) : (
-                      <p className="mt-1 text-xs text-gray-400">Belum ada nomor HP</p>
-                    )}
+                    </div>
                   </div>
 
-                  <div className="mt-4 border-t border-gray-100 pt-3">
+                  <div className="mt-4 border-t border-gray-100 pt-3 flex gap-2">
                     <button
                       onClick={() => {
                         setResetModalUser({
@@ -375,11 +403,28 @@ export default function PemilikKosPage() {
                         setNewPassword("");
                         setResetSuccess(false);
                       }}
-                      className="w-full inline-flex items-center justify-center gap-1.5 rounded-lg bg-gray-50 py-2 text-xs font-medium text-gray-700 hover:bg-gray-100 transition-colors"
+                      className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg bg-gray-100 py-2 text-xs font-medium text-gray-700 hover:bg-gray-200 transition-colors"
                     >
                       <KeyRound className="h-3.5 w-3.5 text-teal-600" />
-                      <span>Ubah Password Akun</span>
+                      <span>Ubah Sandi</span>
                     </button>
+
+                    {pemilik.phone && (
+                      <a
+                        href={getWhatsAppLink(
+                          pemilik.phone,
+                          pemilik.full_name,
+                          "*(Silakan hubungi staf kelurahan jika lupa)*"
+                        )}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center justify-center gap-1 rounded-lg bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 transition-colors border border-emerald-200"
+                        title="Kirim pesan WhatsApp ke pemilik kos"
+                      >
+                        <MessageCircle className="h-3.5 w-3.5 text-emerald-600" />
+                        <span>Chat WA</span>
+                      </a>
+                    )}
                   </div>
                 </div>
               ))
@@ -427,8 +472,7 @@ export default function PemilikKosPage() {
                       )}
                     </div>
                     <p className="text-xs text-gray-500">
-                      Email/Username: <strong>{req.email}</strong> • No HP:{" "}
-                      <strong>{req.no_hp || "-"}</strong>
+                      No HP / WhatsApp: <strong>{req.no_hp || "-"}</strong>
                     </p>
                     {req.keterangan && (
                       <p className="text-xs text-gray-600 bg-white/80 p-2 rounded-lg border border-gray-100 mt-1">
@@ -445,7 +489,6 @@ export default function PemilikKosPage() {
                             id: matchedPemilik?.id || "",
                             name: req.nama || "Pemilik Kos",
                             phone: req.no_hp,
-                            email: req.email,
                             requestId: req.id,
                           });
                           setNewPassword("");
@@ -454,7 +497,7 @@ export default function PemilikKosPage() {
                         className="btn-primary text-xs px-4 py-2"
                       >
                         <KeyRound className="mr-1.5 h-3.5 w-3.5" />
-                        Resetkan Password
+                        Buatkan Password Baru
                       </button>
                     )}
                   </div>
@@ -470,6 +513,64 @@ export default function PemilikKosPage() {
               </p>
             </div>
           )}
+        </div>
+      )}
+
+      {/* MODAL SUCCESS SETELAH TAMBAH PEMILIK (KIRIM KE WA) */}
+      {createdUserSuccess && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl animate-in zoom-in-95">
+            <div className="text-center">
+              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-green-100 text-green-600">
+                <CheckCircle2 className="h-8 w-8" />
+              </div>
+              <h2 className="mt-3 font-heading text-xl font-bold text-gray-900">
+                Akun Berhasil Dibuat!
+              </h2>
+              <p className="mt-1 text-xs text-gray-500">
+                Silakan kirimkan informasi login ini langsung ke WhatsApp pemilik kos
+              </p>
+            </div>
+
+            <div className="mt-4 rounded-xl bg-gray-50 p-4 border border-gray-200 text-xs space-y-2">
+              <div className="flex justify-between">
+                <span className="text-gray-500">Nama Pemilik:</span>
+                <span className="font-bold text-gray-900">{createdUserSuccess.name}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500">Username (No HP):</span>
+                <span className="font-mono font-bold text-teal-800">{createdUserSuccess.phone}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500">Password:</span>
+                <span className="font-mono font-bold text-emerald-700">{createdUserSuccess.pass}</span>
+              </div>
+            </div>
+
+            <div className="mt-5 space-y-2">
+              <a
+                href={getWhatsAppLink(
+                  createdUserSuccess.phone,
+                  createdUserSuccess.name,
+                  createdUserSuccess.pass,
+                  true
+                )}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn-primary w-full py-2.5 inline-flex items-center justify-center gap-2 bg-[#25D366] hover:bg-[#20bd5a] text-white text-xs font-semibold shadow-sm"
+              >
+                <Send className="h-4 w-4" />
+                <span>Kirim Akun ke WhatsApp Pemilik Sekarang</span>
+              </a>
+
+              <button
+                onClick={() => setCreatedUserSuccess(null)}
+                className="btn-ghost w-full text-xs text-gray-500"
+              >
+                Tutup (Kirim Nanti)
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -583,7 +684,7 @@ export default function PemilikKosPage() {
                     required
                   />
                   <p className="text-[11px] text-gray-400">
-                    Minimal 6 karakter. Password ini bisa langsung diberikan ke pemilik kos.
+                    Minimal 6 karakter. Password ini bisa langsung dikirimkan ke pemilik kos via WhatsApp.
                   </p>
                 </div>
 
@@ -591,14 +692,14 @@ export default function PemilikKosPage() {
                   <button
                     type="button"
                     onClick={() => setResetModalUser(null)}
-                    className="btn-secondary flex-1"
+                    className="btn-secondary flex-1 text-xs py-2.5"
                   >
                     Batal
                   </button>
                   <button
                     type="submit"
                     disabled={resetLoading || newPassword.length < 6}
-                    className="btn-primary flex-1"
+                    className="btn-primary flex-1 text-xs py-2.5"
                   >
                     {resetLoading ? "Menyimpan..." : "Simpan Password Baru"}
                   </button>
@@ -624,21 +725,22 @@ export default function PemilikKosPage() {
                     href={getWhatsAppLink(
                       resetModalUser.phone,
                       resetModalUser.name,
-                      newPassword
+                      newPassword,
+                      false
                     )}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="btn-primary w-full py-2.5 inline-flex items-center justify-center gap-2 bg-[#25D366] hover:bg-[#20bd5a] text-white"
+                    className="btn-primary w-full py-2.5 inline-flex items-center justify-center gap-2 bg-[#25D366] hover:bg-[#20bd5a] text-white text-xs font-semibold shadow-sm"
                   >
                     <Send className="h-4 w-4" />
-                    <span>Kirim Password ke WhatsApp Pemilik Kos</span>
+                    <span>Kirim Password Baru ke WhatsApp Pemilik Kos</span>
                   </a>
                 )}
 
                 <button
                   type="button"
                   onClick={() => setResetModalUser(null)}
-                  className="btn-secondary w-full"
+                  className="btn-secondary w-full text-xs py-2.5"
                 >
                   Selesai & Tutup
                 </button>
@@ -648,76 +750,65 @@ export default function PemilikKosPage() {
         </div>
       )}
 
-      {/* MODAL TAMBAH PEMILIK KOS */}
+      {/* MODAL TAMBAH PEMILIK KOS (SIMPLIFIED DENGAN NO HP) */}
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
-          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
-            <h2 className="font-heading text-xl font-semibold text-gray-900">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl animate-in zoom-in-95">
+            <h2 className="font-heading text-xl font-bold text-gray-900">
               Tambah Pemilik Kos Baru
             </h2>
-            <p className="mt-1 text-sm text-gray-500">
-              Buatkan akun login resmi untuk pemilik kos
+            <p className="mt-1 text-xs text-gray-500">
+              Daftarkan akun pemilik kos menggunakan <strong>Nomor HP / WhatsApp</strong>
             </p>
 
-            <form onSubmit={handleAddPemilik} className="mt-6 space-y-4">
+            <form onSubmit={handleAddPemilik} className="mt-5 space-y-4">
               {formError && (
-                <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-600">
+                <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-xs text-red-600 font-medium">
                   {formError}
                 </div>
               )}
 
               <div className="space-y-1.5">
-                <label className="text-sm font-medium text-gray-700">
-                  Nama Lengkap Pemilik <span className="text-red-500">*</span>
+                <label className="text-xs font-semibold text-gray-700">
+                  Nama Lengkap Pemilik Kos <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
-                  className="input-field"
+                  className="input-field text-sm"
                   placeholder="Contoh: Ibu Fatimah"
                   required
                 />
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-sm font-medium text-gray-700">
-                  Email / Username Login <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="input-field"
-                  placeholder="contoh: fatimah@kosan.com"
-                  required
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium text-gray-700">
-                  Nomor HP / WhatsApp Aktif <span className="text-red-500">*</span>
+                <label className="text-xs font-semibold text-gray-700">
+                  Nomor HP / WhatsApp Aktif (Username Login) <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="tel"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
-                  className="input-field"
+                  className="input-field text-sm"
                   placeholder="Contoh: 081234567890"
                   required
                 />
+                <p className="text-[11px] text-gray-400">
+                  Nomor ini akan digunakan sebagai username login pemilik kos.
+                </p>
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-sm font-medium text-gray-700">
+                <label className="text-xs font-semibold text-gray-700">
                   Password Awal <span className="text-red-500">*</span>
                 </label>
                 <input
-                  type="password"
+                  type="text"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="input-field"
-                  placeholder="Minimal 6 karakter"
+                  className="input-field text-sm font-mono"
+                  placeholder="Minimal 6 karakter (contoh: akehuda123)"
                   minLength={6}
                   required
                 />
@@ -727,14 +818,14 @@ export default function PemilikKosPage() {
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
-                  className="btn-secondary flex-1"
+                  className="btn-secondary flex-1 text-xs py-2.5"
                 >
                   Batal
                 </button>
                 <button
                   type="submit"
                   disabled={formLoading}
-                  className="btn-primary flex-1"
+                  className="btn-primary flex-1 text-xs py-2.5 bg-teal-600 hover:bg-teal-700"
                 >
                   {formLoading ? "Menyimpan..." : "Simpan & Buat Akun"}
                 </button>

@@ -69,9 +69,16 @@ export default async function DetailKosanPage({ params }: Props) {
       <div className="card">
         <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
           <div>
-            <h1 className="font-heading text-2xl font-bold text-gray-900">
-              {kosanData.nama}
-            </h1>
+            <div className="flex items-center gap-2">
+              <h1 className="font-heading text-2xl font-bold text-gray-900">
+                {kosanData.nama}
+              </h1>
+              {kosanData.kode_unik && (
+                <span className="rounded-md bg-teal-50 px-2.5 py-1 text-xs font-mono font-bold text-teal-800 border border-teal-200">
+                  #{kosanData.kode_unik}
+                </span>
+              )}
+            </div>
             <div className="mt-2 flex items-center gap-1.5 text-gray-500 text-sm">
               <MapPin className="h-4 w-4 shrink-0 text-primary-600" />
               <span>{kosanData.alamat}</span>
@@ -144,7 +151,7 @@ export default async function DetailKosanPage({ params }: Props) {
             centerLat={kosanData.latitude}
             centerLng={kosanData.longitude}
             zoom={16}
-            heightClass="h-64"
+            heightClass="aspect-square md:aspect-[16/9] md:max-h-[380px]"
           />
         </div>
       )}
