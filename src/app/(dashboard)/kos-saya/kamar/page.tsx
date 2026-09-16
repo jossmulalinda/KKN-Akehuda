@@ -196,36 +196,29 @@ export default function KelolaKamarPage() {
 
     // Optimistically update kamarList in UI
     if (target.type === "penghuni" && target.penghuniId && target.kamarId) {
-      setKamarList((prev) =>
-        prev.map((k) => {
+      setKamarList((prev) => {
+        const result: KamarItem[] = [];
+        for (const k of prev) {
           if (k.id === target.kamarId) {
             const updatedPenghuni = k.penghuni.filter((p) => p.id !== target.penghuniId);
-            return {
-              ...k,
-              penghuni: updatedPenghuni,
-              jumlah_penghuni: updatedPenghuni.length,
-              status: updatedPenghuni.length > 0 ? "aktif" : "kosong",
-              hubungan: updatedPenghuni.length > 1 ? k.hubungan : null,
-            };
+            if (updatedPenghuni.length > 0) {
+              result.push({
+                ...k,
+                penghuni: updatedPenghuni,
+                jumlah_penghuni: updatedPenghuni.length,
+                status: "aktif",
+                hubungan: updatedPenghuni.length > 1 ? k.hubungan : null,
+              });
+            }
+            // If room has no more residents, exclude it so it disappears from view
+          } else {
+            result.push(k);
           }
-          return k;
-        })
-      );
+        }
+        return result;
+      });
     } else if (target.type === "kamar" && target.kamarId) {
-      setKamarList((prev) =>
-        prev.map((k) => {
-          if (k.id === target.kamarId) {
-            return {
-              ...k,
-              penghuni: [],
-              jumlah_penghuni: 0,
-              status: "kosong",
-              hubungan: null,
-            };
-          }
-          return k;
-        })
-      );
+      setKamarList((prev) => prev.filter((k) => k.id !== target.kamarId));
     }
 
     setDeleteModal({ isOpen: false, type: "penghuni" });
@@ -308,15 +301,25 @@ export default function KelolaKamarPage() {
           .eq("kamar_id", target.kamarId);
 
         if (!remaining || remaining.length === 0) {
+          // If no residents left, remove the room row completely so it doesn't leave phantom room
           await supabase
             .from("kamar")
             .update({ status: "kosong" as any, jumlah_penghuni: 0, hubungan: null })
+            .delete()
             .eq("id", target.kamarId);
+
+          setSuccessMsg(
+            `Penghuni "${target.penghuniNama}" berhasil dikeluarkan dan Kamar ${target.nomorKamar} telah dihapus dari daftar.`
+          );
         } else {
           await supabase
             .from("kamar")
             .update({ jumlah_penghuni: remaining.length })
             .eq("id", target.kamarId);
+
+          setSuccessMsg(
+            `Penghuni "${target.penghuniNama}" berhasil dikeluarkan permanen.`
+          );
         }
 
         setSuccessMsg(
@@ -331,10 +334,12 @@ export default function KelolaKamarPage() {
         await supabase
           .from("kamar")
           .update({ status: "kosong" as any, jumlah_penghuni: 0, hubungan: null })
+          .delete()
           .eq("id", target.kamarId);
 
         setSuccessMsg(
           `Kamar ${target.nomorKamar} berhasil dikosongkan permanen.`
+          `Kamar ${target.nomorKamar} berhasil dihapus permanen dari daftar.`
         );
       }
 

@@ -156,6 +156,8 @@ export default function FormPenghuniPage({
   };
 
   const handleSubmit = async () => {
+    if (loading) return;
+
     const step1Err = validateStep1();
     if (step1Err) {
       setError(step1Err);
@@ -178,6 +180,9 @@ export default function FormPenghuniPage({
 
     setLoading(true);
     setError(null);
+
+    let targetKamarId: string | null = null;
+    let isNewKamarCreated = false;
 
     try {
       const supabase = createClient();
@@ -211,18 +216,29 @@ export default function FormPenghuniPage({
 
         if (newKamarError) throw newKamarError;
         targetKamarId = (newKamarData as any).id;
+        isNewKamarCreated = true;
       }
 
       // 2. Direct database insert (No photo storage needed - saves 100% cloud quota)
+      // 2. Direct database insert (mapped safely to postgres enum: mahasiswa, pekerja, lainnya)
       for (let i = 0; i < penghuniList.length; i++) {
         const p = penghuniList[i];
         const finalStatus =
           p.status_pekerjaan === "lainnya"
             ? p.status_custom.trim() || "Lainnya"
             : p.status_pekerjaan;
+        let dbStatus: "mahasiswa" | "pekerja" | "lainnya" = "lainnya";
+        if (p.status_pekerjaan === "mahasiswa") {
+          dbStatus = "mahasiswa";
+        } else if (p.status_pekerjaan === "pegawai" || p.status_pekerjaan === "pekerja") {
+          dbStatus = "pekerja";
+        } else {
+          dbStatus = "lainnya";
+        }
 
         const { error: penghuniError } = await supabase.from("penghuni").insert({
           kamar_id: targetKamarId,
+          kamar_id: targetKamarId!,
           kosan_id: kosanInfo!.id,
           nama_lengkap: p.nama_lengkap.trim(),
           tempat_lahir: "-",
@@ -231,6 +247,7 @@ export default function FormPenghuniPage({
           jenis_kelamin: p.jenis_kelamin as "laki_laki" | "perempuan",
           no_hp: p.no_hp.trim(),
           status_pekerjaan: finalStatus as any,
+          status_pekerjaan: dbStatus,
           foto_url: null,
           is_primary: i === 0,
         });
@@ -240,6 +257,17 @@ export default function FormPenghuniPage({
 
       setSubmitted(true);
     } catch (err: any) {
+      // Auto-rollback: delete newly created room if resident insertion fails
+      if (isNewKamarCreated && targetKamarId) {
+        try {
+          const supabase = createClient();
+          await supabase.from("penghuni").delete().eq("kamar_id", targetKamarId);
+          await supabase.from("kamar").delete().eq("id", targetKamarId);
+        } catch (cleanupErr) {
+          console.error("Auto-rollback failed:", cleanupErr);
+        }
+      }
+      fetchKosan();
       setError(err.message || "Gagal mengirim data. Silakan coba lagi.");
     } finally {
       setLoading(false);

@@ -39,7 +39,7 @@ export default async function DetailKosanPage({ params }: Props) {
   ) || 0;
 
   const kamarTerisi = kosanData.kamar?.filter(
-    (k: any) => k.status === "aktif"
+    (k: any) => (k.penghuni?.length || 0) > 0
   ).length || 0;
 
   const mapItem = {

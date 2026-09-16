@@ -77,6 +77,7 @@ export default async function DashboardPage() {
       (sum, k) =>
         sum +
         (k.kamar?.filter((kmr: any) => kmr.status === "aktif")?.length || 0),
+        (k.kamar?.filter((kmr: any) => (kmr.penghuni?.length || 0) > 0)?.length || 0),
       0
     );
     const totalPenghuni = myKosans.reduce(

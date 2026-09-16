@@ -181,7 +181,7 @@ export default function KosanPage() {
                 0
               ) || 0;
               const kamarTerisi = kosan.kamar?.filter(
-                (km: any) => km.status === "aktif"
+                (km: any) => (km.penghuni?.length || 0) > 0
               ).length || 0;
 
               const hasCoords = kosan.latitude !== null && kosan.longitude !== null && !isNaN(kosan.latitude);

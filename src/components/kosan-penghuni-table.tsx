@@ -160,6 +160,7 @@ export function KosanPenghuniTable({ initialPenghuniList, kosanNama }: Props) {
         await supabase
           .from("kamar")
           .update({ status: "kosong" as any, jumlah_penghuni: 0, hubungan: null })
+          .delete()
           .eq("id", target.kamar_id);
       } else {
         await supabase

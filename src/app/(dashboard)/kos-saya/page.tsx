@@ -44,7 +44,7 @@ export default async function KosSayaPage() {
               0
             ) || 0;
             const kamarTerisi = kosan.kamar?.filter(
-              (k: any) => k.status === "aktif"
+              (k: any) => (k.penghuni?.length || 0) > 0
             ).length || 0;
 
             return (
